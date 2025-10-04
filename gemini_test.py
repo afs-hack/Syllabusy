@@ -18,7 +18,7 @@ print("Beginning PDF read test...")
 
 filepath = pathlib.Path(TEST_PDF_PATH).expanduser()
 
-prompt = "who is the professor and where (and when) is the class held?"
+prompt = "From this syllabus give me this information formatted cleanly in JSON: Course info: course code, course title, Professor info: name, office hours and office location, preferred contact, email, Classroom Info: meeting times, location, Textbooks: names, ISBNs, Assignments: types, weights, late policy, Class schedule: ass, Attendance Policy:"
 response = client.models.generate_content(
     model="gemini-2.5-flash", contents=[
       types.Part.from_bytes(

@@ -51,8 +51,6 @@ except Exception as e:
     print(f"ERROR: Could not initialize Firebase Admin SDK. Check credentials and bucket config. Error: {e}")
     # In a real app, you might exit or disable file storage features here.
 
-@app.route('/api/upload-pdf', methods=['POST'])
-
 # --- Reusable Core Upload Function ---
 def _perform_upload(file_handle, original_filename, user_id):
     """
@@ -103,31 +101,61 @@ def upload_pdf_to_firebase():
     user_id = request.headers.get('X-User-ID', 'anonymous_user')
     
     # 1. Validation & File retrieval
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file part in the request.'}), 400
-    uploaded_file = request.files['file']
+    if 'files' not in request.files:
+        print("DEBUG ERROR: 'files' key missing in request.files. Returning 400.")
+        return jsonify({'error': 'No file part(s) in the request. Ensure frontend FormData field is named "files".'}), 400
     
-    if uploaded_file.filename == '':
-        return jsonify({'error': 'No selected file.'}), 400
-    original_filename = uploaded_file.filename
-    
-    if not original_filename.lower().endswith('.pdf'):
-        return jsonify({'error': 'Invalid file type. Only PDF files are allowed.'}), 400
+    uploaded_files = request.files.getlist('files')
 
-    # ====================================================================
-    # DEBUGGING STEP: Print the arguments before calling the function
-    # ====================================================================
-    print("FUCK YOU")
-    print(f"DEBUG: User ID: {user_id}")
-    print(f"DEBUG: Original Filename: {original_filename}")
-    print(f"DEBUG: File Handle Object Type: {type(uploaded_file)}")
-    # 2. Perform Upload using the reusable function
-    upload_result, error_msg = _perform_upload(uploaded_file, original_filename, user_id)
     
-    if upload_result:
-        return jsonify(upload_result), 200
+    if not uploaded_files:
+        return jsonify({'error': 'No selected files.'}), 400
+    
+    upload_results = []
+    has_error = False
+
+    for uploaded_file in uploaded_files:
+        original_filename = uploaded_file.filename
+
+        if original_filename == '':
+            continue # Skip files with no name
+
+        if not original_filename.lower().endswith('.pdf'):
+            has_error = True
+            upload_results.append({
+                'filename': original_filename, 
+                'error': 'Invalid file type. Only PDF files are allowed.'
+            })
+            continue # Skip non-PDF files
+
+        # 2. Perform Upload using the reusable function
+        result, error_msg = _perform_upload(uploaded_file, original_filename, user_id)
+
+        # 3. Store result
+        if error_msg:
+            has_error = True
+            upload_results.append({'filename': original_filename, 'error': error_msg})
+        else:
+            upload_results.append(result)
+    
+    # 4. Response handling
+    if has_error:
+        # If any file failed, return a 500 error with the list of results/errors
+        # The frontend will need to parse this list.
+        return jsonify({
+            'message': 'Some files failed to upload or were invalid.',
+            'results': upload_results
+        }), 500
     else:
-        return jsonify({'error': error_msg}), 500
+        # NOTE: Svelte frontend expects 'summary', we summarize all uploads here.
+        uploaded_names = [r['filename'] for r in upload_results]
+        summary_message = f"Successfully processed and uploaded {len(uploaded_files)} file(s): {', '.join(uploaded_names)}."
+
+        return jsonify({
+            'message': 'All files uploaded successfully.',
+            'summary': summary_message, # Send a summary back for the textarea
+            'results': upload_results
+        }), 200
 
 
 # --- 2b. Local File Upload Endpoint (New functionality for local file) ---
@@ -160,6 +188,20 @@ def upload_local_test():
     except Exception as e:
         print(f"Error opening local file: {e}")
         return jsonify({'error': f'Error processing local file: {str(e)}'}), 500
+
+# --- NEW 2c. Status Endpoint ---
+@app.route('/api/status', methods=['POST'])
+def get_status():
+    print("AAAAAAAH")
+    """Returns a simple JSON status to confirm the backend is running."""
+    # Check if Firebase is initialized just to be thorough
+    is_firebase_ready = bool(firebase_admin._apps)
+    
+    return jsonify({
+        'status': 'OK',
+        'message': 'Flask server and API endpoints are running.',
+        'firebase_status': 'Connected' if is_firebase_ready else 'Uninitialized'
+    }), 200
 
 @app.route('/')
 def status():

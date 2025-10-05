@@ -3,6 +3,7 @@
   let summary = "";
   let loading = false;
   const BACKEND_URL = "http://localhost:5000/api/upload-pdf";
+  const STATUS_URL = "http://localhost:5000/api/status"; // New status endpoint
 
   function handleFiles(selectedFiles: FileList) {
     const newFiles = Array.from(selectedFiles);
@@ -52,6 +53,29 @@
       loading = false;
     }
   }
+
+    // --- NEW FUNCTION TO CHECK BACKEND STATUS ---
+  async function checkStatus() {
+    loading = true;
+    summary = "Checking backend status...";
+    try {
+      // Sends a GET request to the new /api/status endpoint
+      const res = await fetch(STATUS_URL, {
+        method: "POST"
+      });
+
+      if (!res.ok) throw new Error("Server down or unreachable: " + res.statusText);
+
+      const data = await res.json();
+      // Format the status message nicely for the textarea
+      summary = `Backend Status Check Successful:\n\nStatus: ${data.status}\nMessage: ${data.message}\nFirebase: ${data.firebase_status}`;
+
+    } catch (err) {
+      summary = "Connection Error: Cannot reach Flask server. Check server console for CORS/network issues.";
+    } finally {
+      loading = false;
+    }
+  }
 </script>
 
 <style>
@@ -93,6 +117,18 @@
   .file-button, button.upload {
     padding: 0.6em 1.2em;
     background: #ff77a9;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 1em;
+    transition: background 0.2s;
+  }
+
+  /* New style for the status button */
+  button.status-check {
+    padding: 0.6em 1.2em;
+    background: #a977ff; /* A different color for distinction */
     color: white;
     border: none;
     border-radius: 8px;
@@ -206,6 +242,11 @@
       {/each}
     </ul>
   {/if}
+
+<!-- NEW STATUS CHECK BUTTON -->
+  <button class="status-check" on:click={checkStatus} disabled={loading}>
+    {loading ? "Checking..." : "Check API Status"}
+  </button>
 
   <button class="upload" on:click={handleUpload} disabled={loading}>
     {loading ? "Analyzing..." : "Upload and Summarize"}

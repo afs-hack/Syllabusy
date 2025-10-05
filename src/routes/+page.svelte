@@ -169,26 +169,6 @@ onMount(() => {
   </div>
 
   <div class="flex flex-col items-center justify-center min-h-screen bg-gray-50 text-gray-800">
-    {#if $isAuthenticated}
-      <div class="p-4 text-center">
-        <p class="text-lg font-semibold">Welcome, {$user?.name}</p>
-        <img src="{$user?.picture}" alt="Profile pic" class="rounded-full mx-auto my-2" width="80" />
-        <button on:click={logout} class="auth-button bg-red-500 hover:bg-red-600">
-          Logout
-        </button>
-      </div>
-    {:else}
-      <div class="p-4 text-center">
-        <!-- Google-style login button (Auth0 login) -->
-        <button class="auth-placeholder" on:click={login} aria-label="Sign in with Google Account">
-          <svg class="google-icon" viewBox="0 0 48 48" role="img" aria-label="Google">
-            <!-- You can keep your full Google SVG paths here -->
-          </svg>
-          Sign In with Google
-        </button>
-      </div>
-    {/if}
-  </div>
   {#if !$isAuthenticated}
     <div class="p-4 text-center">
       <button class="auth-button" on:click={login} aria-label="Sign in with Google Account">

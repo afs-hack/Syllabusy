@@ -8,6 +8,10 @@ const config = {
 	preprocess: vitePreprocess(),
 
 	kit: {
+
+        // Prevents SvelteKit from generating paths that are incompatible with Flask's routing
+        // This is generally a good practice for static/server-side hosting.
+        //trailingSlash: 'always',
 		// We use adapter-static because Flask is serving the compiled files
         // and we do not need a Node server environment.
         adapter: adapter({
@@ -27,9 +31,6 @@ const config = {
             base: '', 
         },
 
-        // Prevents SvelteKit from generating paths that are incompatible with Flask's routing
-        // This is generally a good practice for static/server-side hosting.
-        //trailingSlash: 'always', 
 	}
 };
 

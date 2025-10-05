@@ -1,3 +1,5 @@
+export const trailingSlash = 'always';
+
 <script lang="ts">
   let files: File[] = [];
   let summary = "";

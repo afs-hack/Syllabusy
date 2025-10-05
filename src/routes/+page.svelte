@@ -1,7 +1,22 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   const WELCOME_TEXT = "Welcome to";
   const TITLE = "Syllabusy";
   const SUBTITLE = "Your AI-Powered Syllabus Summarizer";
+
+  let starsContainer: HTMLDivElement;
+
+onMount(() => {
+  // Create 50 random stars
+  for (let i = 0; i < 50; i++) {
+    const star = document.createElement('div');
+    star.className = 'star';
+    star.style.left = `${Math.random() * 100}%`;
+    star.style.top = `${Math.random() * 100}%`;
+    star.style.animationDelay = `${Math.random() * 3}s`;
+    starsContainer?.appendChild(star);
+  }
+});
 
   async function goHome() {
     window.location.href = "/home"
@@ -9,6 +24,37 @@
 </script>
 
 <style>
+  /* Make sure content is above stars */
+.landing-container {
+  position: relative;
+  z-index: 1;
+}
+  .stars {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+:global(.star) {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: white;
+  border-radius: 50%;
+  animation: twinkle 3s ease-in-out infinite;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+
   .owl-container {
   font-size: 120px;
   margin-bottom: 1rem;
@@ -116,6 +162,8 @@
     }
   }
 </style>
+
+<div class="stars" bind:this={starsContainer}></div>
 
 <main class="landing-container">
 

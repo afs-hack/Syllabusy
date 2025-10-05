@@ -1,10 +1,32 @@
 <script lang="ts">
-  export const trailingSlash = 'always';
   let files: File[] = [];
   let summary = "";
   let loading = false;
   const BACKEND_URL = "http://localhost:5000/api/upload-pdf";
-  const STATUS_URL = "http://localhost:5000/api/status"; // New status endpoint
+  const DATES_URL = "http://localhost:5000/api/get-dates"; // New status endpoint
+
+  async function getDates(){
+    loading = true;
+
+    try{
+      const res = await fetch(DATES_URL, {
+        method: "POST",
+        headers: {
+             'User-ID': 'Swaggy McBaggums' // Example header, modify as needed
+        },
+      })
+        if (!res.ok) throw new Error("Server down or unreachable: " + res.statusText);
+
+        const data = await res.json();
+        // Format the status message nicely for the textarea
+        summary = data.summary;
+      ;
+    } catch (err) {
+      summary = "Connection Error: Cannot reach Flask server. Check server console for CORS/network issues.";
+    } finally {
+      loading = false;
+    }
+  }
 
   function handleFiles(selectedFiles: FileList) {
     const newFiles = Array.from(selectedFiles);
@@ -59,7 +81,7 @@
   }
 
     // --- NEW FUNCTION TO CHECK BACKEND STATUS ---
-  async function checkStatus() {
+  /*async function checkStatus() {
     loading = true;
     summary = "Checking backend status...";
     try {
@@ -79,7 +101,7 @@
     } finally {
       loading = false;
     }
-  }
+  }*/
 </script>
 
 <style>
@@ -248,8 +270,8 @@
   {/if}
 
 <!-- NEW STATUS CHECK BUTTON -->
-  <button class="status-check" on:click={checkStatus} disabled={loading}>
-    {loading ? "Checking..." : "Check API Status"}
+  <button class="status-check" on:click={getDates} disabled={loading}>
+    {loading ? "Checking..." : "Get important dates!"}
   </button>
 
   <button class="upload" on:click={handleUpload} disabled={loading}>

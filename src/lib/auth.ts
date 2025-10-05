@@ -1,6 +1,6 @@
 // src/lib/auth.ts
 import { createAuth0Client, type Auth0Client, type User } from "@auth0/auth0-spa-js";
-import { writable, type Writable } from "svelte/store";
+import { writable, type Writable, get } from "svelte/store";
 
 export const user: Writable<User | null> = writable(null);
 export const isAuthenticated = writable(false);
@@ -8,7 +8,7 @@ export const auth0Client: Writable<Auth0Client | null> = writable(null);
 export const googleAccessToken = writable<string | null>(null);
 export const googleRefreshToken = writable<string | null>(null);
 
-const NAMESPACE = 'https://syllabusy.app'; // Must match your Action
+const NAMESPACE = 'https://syllabusy.app';
 
 export async function initAuth() {
   if (typeof window === "undefined") return;
@@ -19,7 +19,8 @@ export async function initAuth() {
     authorizationParams: {
       redirect_uri: window.location.origin,
       scope: 'openid profile email'
-    }
+    },
+    cacheLocation: 'localstorage'
   });
 
   auth0Client.set(client);
@@ -45,18 +46,22 @@ async function loadUserData(client: Auth0Client) {
   // Get Google access token from custom claims
   const claims = await client.getIdTokenClaims();
   
+  console.log('ID Token Claims:', claims);
+  
   if (claims) {
     const googleToken = claims[`${NAMESPACE}/google_access_token`];
     const googleRefresh = claims[`${NAMESPACE}/google_refresh_token`];
     
     if (googleToken) {
       googleAccessToken.set(googleToken);
-      console.log('✓ Google access token retrieved for Calendar API');
+      console.log('✓ Google access token retrieved');
+    } else {
+      console.warn('⚠ No Google access token in Auth0 claims');
+      console.log('You will need to authenticate with Google Calendar separately');
     }
     
     if (googleRefresh) {
       googleRefreshToken.set(googleRefresh);
-      console.log('✓ Google refresh token retrieved');
     }
   }
 }
@@ -67,8 +72,8 @@ export async function login() {
     await client.loginWithRedirect({
       authorizationParams: {
         connection: 'google-oauth2',
-        access_type: 'offline', // Request refresh token
-        prompt: 'consent' // Force consent to get Calendar permissions
+        access_type: 'offline',
+        prompt: 'consent'
       }
     });
   }
@@ -85,10 +90,4 @@ export async function logout() {
   isAuthenticated.set(false);
   googleAccessToken.set(null);
   googleRefreshToken.set(null);
-}
-
-function get<T>(store: Writable<T>): T {
-  let value: T;
-  store.subscribe((v) => (value = v))();
-  return value!;
 }

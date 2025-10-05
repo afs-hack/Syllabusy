@@ -94,11 +94,8 @@ def _perform_upload(file_handle, original_filename, user_id):
 # --- 2a. HTTP Request Upload Endpoint (Original functionality) ---
 @app.route('/api/upload-pdf', methods=['POST'])
 def upload_pdf_to_firebase():
-    print("DEBUG: /api/upload-pdf endpoint hit.")
-    print(f"DEBUG: Keys in request.files: {request.files.keys()}")
-    print("FUCK YOU")
     """Handles PDF file uploads from the frontend via POST request."""
-    user_id = request.headers.get('X-User-ID', 'anonymous_user')
+    user_id = request.headers.get('User-ID')
     
     # 1. Validation & File retrieval
     if 'files' not in request.files:

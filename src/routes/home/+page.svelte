@@ -1,6 +1,5 @@
-export const trailingSlash = 'always';
-
 <script lang="ts">
+  export const trailingSlash = 'always';
   let files: File[] = [];
   let summary = "";
   let loading = false;
@@ -42,7 +41,10 @@ export const trailingSlash = 'always';
     try {
       const res = await fetch(BACKEND_URL, {
         method: "POST",
-        body: formData
+        body: formData,
+        headers: {
+             'User-ID': 'Swaggy McBaggums' // Example header, modify as needed
+        },
       });
 
       if (!res.ok) throw new Error("Backend error");

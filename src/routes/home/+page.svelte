@@ -15,7 +15,7 @@
       const res = await fetch(DATES_URL, {
         method: "POST",
         headers: {
-             'User-ID': $user.subtitle// Example header, modify as needed
+             'User-ID': $user?.sub || 'anonymous'// Example header, modify as needed
         },
       })
         if (!res.ok) throw new Error("Server down or unreachable: " + res.statusText);
@@ -82,7 +82,10 @@
     try {
       const res = await fetch(BACKEND_URL, {
         method: "POST",
-        body: formData
+        body: formData,
+        headers: {
+            'User-ID': $user?.sub || 'anonymous' // Example header, modify as needed
+        },
       });
 
       if (!res.ok) throw new Error("Backend error");

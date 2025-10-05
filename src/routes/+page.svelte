@@ -24,7 +24,7 @@ onMount(() => {
   }
 
   // Automatically redirect after login
-  $: if ($isAuthenticated && $googleAccessToken) {
+  $: if ($isAuthenticated) {
     console.log('User authenticated with Google token');
     goHome();
   }

@@ -22,6 +22,11 @@ onMount(() => {
   async function goHome() {
     window.location.href = "/home"
   }
+
+  // Automatically redirect after login
+  $: if ($isAuthenticated) {
+    goHome();
+  }
 </script>
 
 <style>
@@ -184,4 +189,12 @@ onMount(() => {
       </div>
     {/if}
   </div>
+  {#if !$isAuthenticated}
+    <div class="p-4 text-center">
+      <button class="auth-button" on:click={login} aria-label="Sign in with Google Account">
+        Sign In with Google
+      </button>
+    </div>
+  {/if}
+</div>
 </main>

@@ -167,7 +167,7 @@ onMount(() => {
     {#if $isAuthenticated}
       <div class="p-4 text-center">
         <p class="text-lg font-semibold">Welcome, {$user?.name}</p>
-        <img src="{$user?.picture}" alt="Profile picture" class="rounded-full mx-auto my-2" width="80" />
+        <img src="{$user?.picture}" alt="Profile pic" class="rounded-full mx-auto my-2" width="80" />
         <button on:click={logout} class="auth-button bg-red-500 hover:bg-red-600">
           Logout
         </button>

@@ -12,8 +12,8 @@ export async function initAuth() {
   }
 
   const client = await createAuth0Client({
-    domain: "dev-zjsexfikwf0eaigr.us.auth0.com",
-    clientId: "RRQ1iyVM0rYBEo8szolJYhQdXUV2d4dB",
+    domain: "dev-g2otnhbqcj5kojjn.us.auth0.com",
+    clientId: "rHBgweejupAzx1LJ2nRweHbuA4KR281n",
     authorizationParams: {
       redirect_uri: window.location.origin
     }

@@ -1,261 +1,127 @@
-export const trailingSlash = 'always';
-
 <script lang="ts">
-  let files: File[] = [];
-  let summary = "";
-  let loading = false;
-  const BACKEND_URL = "http://localhost:5000/api/upload-pdf";
-  const STATUS_URL = "http://localhost:5000/api/status"; // New status endpoint
-
-  function handleFiles(selectedFiles: FileList) {
-    const newFiles = Array.from(selectedFiles);
-    // avoid duplicates
-    files = [...files, ...newFiles.filter(f => !files.some(existing => existing.name === f.name))];
-  }
-
-  function handleDrop(event: DragEvent) {
-    event.preventDefault();
-    if (event.dataTransfer?.files) handleFiles(event.dataTransfer.files);
-  }
-
-  function handleDragOver(event: DragEvent) {
-    event.preventDefault(); // needed to allow drop
-  }
-
-  function removeFile(index: number) {
-    files.splice(index, 1);
-    files = [...files]; // trigger reactivity
-  }
-
-  async function handleUpload() {
-    if (files.length === 0) {
-      alert("Please select at least one file.");
-      return;
-    }
-
-    loading = true;
-    summary = "";
-
-    const formData = new FormData();
-    files.forEach(file => formData.append("files", file));
-
-    try {
-      const res = await fetch(BACKEND_URL, {
-        method: "POST",
-        body: formData
-      });
-
-      if (!res.ok) throw new Error("Backend error");
-
-      const data = await res.json();
-      summary = data.summary || "No summary returned.";
-    } catch (err) {
-      summary = "Error: " + (err instanceof Error ? err.message : err);
-    } finally {
-      loading = false;
-    }
-  }
-
-    // --- NEW FUNCTION TO CHECK BACKEND STATUS ---
-  async function checkStatus() {
-    loading = true;
-    summary = "Checking backend status...";
-    try {
-      // Sends a GET request to the new /api/status endpoint
-      const res = await fetch(STATUS_URL, {
-        method: "POST"
-      });
-
-      if (!res.ok) throw new Error("Server down or unreachable: " + res.statusText);
-
-      const data = await res.json();
-      // Format the status message nicely for the textarea
-      summary = `Backend Status Check Successful:\n\nStatus: ${data.status}\nMessage: ${data.message}\nFirebase: ${data.firebase_status}`;
-
-    } catch (err) {
-      summary = "Connection Error: Cannot reach Flask server. Check server console for CORS/network issues.";
-    } finally {
-      loading = false;
-    }
-  }
+  const WELCOME_TEXT = "Welcome to";
+  const TITLE = "Syllabusy";
+  const SUBTITLE = "Your AI-Powered Syllabus Summarizer";
 </script>
 
 <style>
-  /* Google Font loaded in app.html head */
-  main {
-    max-width: 600px;
-    margin: 3em auto;
-    padding: 2em;
-    background: #fff5f8;
-    border-radius: 12px;
-    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
-    font-family: 'Roboto', 'Segoe UI Emoji', sans-serif;
-    color: #333;
+  /* NEW COLOR PALETTE: Dark Slate with Electric Mint Accent */
+  :global(body) {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    background-color: #0D1117; /* Dark slate background (GitHub Dark) */
+    color: #F9F9FB; /* Near-white text */
+    min-height: 100vh;
   }
-
-  h1 {
-    font-family: 'Roboto', 'Segoe UI Emoji', sans-serif;
-    font-weight: 700;
-    font-size: 2.5rem;
-    text-align: center;
-    margin-bottom: 1.5em;
-  }
-
-  .dropzone {
-    border: 2px dashed #ff77a9;
-    border-radius: 12px;
-    padding: 2em;
-    text-align: center;
-    cursor: pointer;
-    margin-bottom: 1em;
-    background-color: #ffe6f0;
-    transition: background-color 0.2s;
-  }
-
-  .dropzone:hover {
-    background-color: #ffd0e0;
-  }
-
-  .file-button, button.upload {
-    padding: 0.6em 1.2em;
-    background: #ff77a9;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    margin-bottom: 1em;
-    transition: background 0.2s;
-  }
-
-  /* New style for the status button */
-  button.status-check {
-    padding: 0.6em 1.2em;
-    background: #a977ff; /* A different color for distinction */
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    margin-bottom: 1em;
-    transition: background 0.2s;
-  }
-
-  .file-button:hover, button.upload:hover {
-    background: #ff4d85;
-  }
-
-  .file-button:disabled, button.upload:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  ul {
-    margin: 1em 0;
-    padding: 0;
-    list-style: none;
+  
+  /* Container for vertical and horizontal centering, slightly pushed up */
+  .landing-container {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.5em;
+    flex-direction: column;
+    /* Keeps content centered but uses padding to visually shift it higher */
+    justify-content: center; 
+    align-items: center;
+    min-height: 100vh;
+    padding: 10vh 2rem 2rem; 
+    text-align: center;
   }
 
-  li {
-    background: #ffb6c1;
+  .title-group {
+    margin-bottom: 2rem;
+  }
+
+  .welcome {
+    font-size: 1.5vw;
+    font-weight: 400; /* Slightly heavier */
+    color: #F9F9FB;
+    /* TIGHTER SPACING: Reduced margin-bottom to bring it closer to the title */
+    margin: 0 0 0.25rem 0; 
+  }
+
+  .title {
+    /* MUCH LARGER: Increased font size for impact */
+    font-size: 12vw; 
+    font-weight: 900;
+    color: #5EEAD4; /* Electric Mint Accent */
+    margin-bottom: 0;
+    line-height: 0.85; /* Tightened line height for the large text */
+    letter-spacing: -4px; /* More condensed look */
+  }
+
+  .subtitle {
+    font-size: 2vw;
+    font-weight: 300;
+    color: #BAC2C9; /* Soft grey for secondary text */
+    margin-top: 1rem;
+  }
+
+  /* Google Login Placeholder styling remains consistent with Google branding */
+  .auth-placeholder {
+    background-color: #4285f4; /* Google Blue */
     color: white;
-    padding: 0.4em 0.8em;
-    border-radius: 6px;
+    font-weight: 700;
+    padding: 0.75rem 2rem;
+    border: none;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    font-size: 1.25rem;
+    transition: background-color 0.2s, box-shadow 0.2s;
     display: flex;
     align-items: center;
-  }
-
-  li button {
-    background: transparent;
-    border: none;
-    color: white;
-    font-weight: bold;
-    margin-left: 0.5em;
+    gap: 0.75rem;
     cursor: pointer;
+    margin-top: 1.5rem; /* Add some space below the subtitle */
   }
 
-  li button:hover {
-    color: #ffdddd;
+  .auth-placeholder:hover {
+    background-color: #357ae8;
+    /* Keeping blue shadow, but could match accent if branding wasn't strict */
+    box-shadow: 0 4px 15px rgba(66, 133, 244, 0.6); 
   }
 
-  textarea {
-    width: 100%;
-    height: 250px;
-    margin-top: 1em;
-    padding: 1em;
-    border-radius: 8px;
-    font-family: 'Roboto', monospace;
-    font-size: 1rem;
-    border: 1px solid #ff77a9;
-    resize: vertical;
+  .google-icon {
+    width: 24px;
+    height: 24px;
+    fill: white;
+  }
+  
+  /* Media query for smaller screens */
+  @media (max-width: 600px) {
+    .welcome {
+      font-size: 5vw;
+      margin-bottom: 0.1rem; /* Extremely tight spacing on mobile */
+    }
+    .title {
+      font-size: 20vw; /* Extra large for mobile impact */
+      letter-spacing: -2px;
+    }
+    .subtitle {
+      font-size: 5vw;
+    }
   }
 </style>
 
-<main>
-  <h1>🌷 AI Syllabus Summarizer</h1>
+<main class="landing-container">
+  
+  <div class="title-group">
+    <!-- Welcome to -->
+    <p class="welcome">{WELCOME_TEXT}</p>
 
-  <!-- Drag and Drop -->
-  <div
-  class="dropzone"
-  on:drop={handleDrop}
-  on:dragover={handleDragOver}
-  on:click={() => {
-    const input = document.getElementById('fileInput') as HTMLInputElement;
-    input?.click();
-  }}
-  role="button"
-  tabindex="0"
-  on:keydown={(e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      const input = document.getElementById('fileInput') as HTMLInputElement;
-      input?.click();
-    }
-  }}
->
-  Drag & Drop files here or click to select
-</div>
-
-  <!-- File select button -->
-  <button class="file-button" type="button" on:click={() => {
-  const input = document.getElementById('fileInput') as HTMLInputElement;
-  input?.click();
-}}>
-    Select Files
+    <!-- Syllabus is the largest element -->
+    <h1 class="title">{TITLE}</h1>
+    <!-- AI-Powered Syllabus Summarizer -->
+    <p class="subtitle">{SUBTITLE}</p>
+  </div>
+  
+  <!-- Login Placeholder Button -->
+  <button class="auth-placeholder" aria-label="Sign in with Google Account">
+    <svg class="google-icon" viewBox="0 0 48 48" role="img" aria-label="Google">
+        <path fill="#FFC107" d="M43.61,20.08h-2.5V24h2.5c0.16,1.48,0.06,3.01-0.28,4.41c-0.34,1.4-1.07,2.69-2.11,3.74c-1.04,1.05-2.29,1.86-3.69,2.44c-1.4,0.57-2.91,0.88-4.48,0.95c-1.57,0.07-3.15-0.03-4.66-0.3c-1.51-0.27-2.94-0.79-4.24-1.54c-1.3-0.75-2.47-1.74-3.47-2.93c-1-1.18-1.87-2.51-2.55-3.95c-0.68-1.44-1.16-2.97-1.45-4.57c-0.29-1.59-0.38-3.23-0.27-4.85c0.11-1.62,0.46-3.2,1.04-4.69c0.58-1.49,1.38-2.88,2.39-4.14c1.01-1.26,2.23-2.39,3.61-3.35c1.38-0.96,2.88-1.73,4.46-2.28c1.58-0.55,3.22-0.84,4.89-0.87c1.67-0.03,3.35,0.09,4.96,0.36c1.61,0.27,3.16,0.73,4.61,1.38c1.45,0.65,2.81,1.52,4.01,2.58l-3.32,3.32c-0.89-0.7-1.92-1.28-3.02-1.71c-1.1-0.43-2.26-0.66-3.43-0.68c-1.17-0.02-2.36,0.08-3.52,0.3c-1.16,0.22-2.28,0.59-3.34,1.09c-1.06,0.5-2.07,1.13-2.99,1.88c-0.92,0.75-1.77,1.63-2.5,2.62c-0.73,0.99-1.34,2.09-1.81,3.26c-0.47,1.17-0.81,2.41-1.01,3.69c-0.2,1.28-0.26,2.57-0.18,3.85c0.08,1.28,0.3,2.56,0.66,3.77c0.36,1.21,0.85,2.37,1.46,3.46c0.61,1.09,1.34,2.11,2.19,3.04c0.85,0.93,1.82,1.75,2.88,2.46c1.06,0.71,2.2,1.29,3.4,1.72c1.2,0.43,2.46,0.66,3.73,0.68c1.27,0.02,2.54-0.08,3.77-0.3c1.23-0.22,2.42-0.59,3.54-1.1c1.12-0.51,2.17-1.15,3.13-1.93c0.96-0.78,1.82-1.72,2.57-2.77c0.75-1.05,1.38-2.21,1.86-3.46c0.48-1.25,0.76-2.58,0.84-3.95c0.08-1.37-0.03-2.75-0.34-4.08C43.51,21.05,43.61,20.57,43.61,20.08z"/>
+        <path fill="#4285F4" d="M12.9,24c0.08-1.28,0.3-2.56,0.66-3.77c0.36-1.21,0.85-2.37,1.46-3.46c0.61-1.09,1.34-2.11,2.19-3.04c0.85-0.93,1.82-1.75,2.88-2.46c1.06-0.71,2.2-1.29,3.4-1.72c1.2-0.43,2.46-0.66,3.73-0.68c1.27-0.02,2.54,0.08,3.77,0.3c1.23,0.22,2.42,0.59,3.54,1.1c1.12,0.51,2.17,1.15,3.13,1.93c0.96,0.78,1.82,1.72,2.57,2.77c0.75,1.05,1.38,2.21,1.86,3.46c0.48,1.25,0.76,2.58,0.84,3.95c0.08,1.37-0.03,2.75-0.34,4.08c-0.31,1.33-0.85,2.59-1.6,3.74c-0.75,1.15-1.68,2.18-2.78,3.08c-1.1,0.9-2.36,1.65-3.73,2.23c-1.37,0.58-2.81,0.94-4.29,1.07c-1.48,0.13-2.99,0.04-4.47-0.26c-1.48-0.3-2.89-0.8-4.2-1.49c-1.31-0.69-2.52-1.62-3.6-2.76c-1.08-1.14-2.03-2.49-2.82-3.99c-0.79-1.5-1.4-3.11-1.81-4.78c-0.41-1.67-0.61-3.39-0.56-5.11C12.9,25.68,12.92,24.84,12.9,24z"/>
+        <path fill="#19A05C" d="M12.9,24c-0.02-0.84-0.01-1.68,0.03-2.51c0.04-0.83,0.14-1.66,0.31-2.47c0.17-0.81,0.38-1.6,0.64-2.36c0.26-0.76,0.57-1.49,0.92-2.18c0.35-0.69,0.75-1.34,1.19-1.95c0.44-0.61,0.93-1.17,1.46-1.69c0.53-0.52,1.11-0.99,1.72-1.41c0.61-0.42,1.26-0.78,1.94-1.08c0.68-0.3,1.4-0.55,2.15-0.73c0.75-0.18,1.52-0.29,2.31-0.32c0.79-0.03,1.58,0.01,2.37,0.12c0.79,0.11,1.57,0.27,2.33,0.5c0.76,0.23,1.51,0.52,2.23,0.87c0.72,0.35,1.41,0.77,2.06,1.25c0.65,0.48,1.26,1.02,1.82,1.62l3.32-3.32c-1.2-1.06-2.56-1.93-4.01-2.58c-1.45-0.65-3-1.11-4.61-1.38c-1.61-0.27-3.29-0.39-4.96-0.36c-1.67,0.03-3.31,0.32-4.89,0.87c-1.58,0.55-3.08,1.39-4.46,2.28c-1.38,0.96-2.6,2.09-3.61,3.35c-1.01,1.26-1.81,2.67-2.39,4.14c-0.58,1.49-0.93,3.07-1.04,4.69c-0.11,1.62-0.03,3.26,0.27,4.85c0.29,1.59,0.77,3.13,1.45,4.57c0.68,1.44,1.55,2.77,2.55,3.95c1,1.18,2.17,2.4,3.47,2.93c1.3,0.75,2.73,1.27,4.24,1.54c1.51,0.27,3.09,0.37,4.66,0.3c1.57-0.07,3.08-0.38,4.48-0.95c1.4-0.57,2.65-1.39,3.69-2.44c1.04-1.05,1.77-2.34,2.11-3.74c0.34-1.4,0.44-2.93,0.28-4.41H43.61v-3.92h-2.5c0.16,1.48,0.06,3.01-0.28,4.41c-0.34,1.4-1.07,2.69-2.11,3.74c-1.04,1.05-2.29,1.86-3.69,2.44c-1.4,0.57-2.91,0.88-4.48,0.95c-1.57,0.07-3.15-0.03-4.66-0.3c-1.51-0.27-2.94-0.79-4.24-1.54c-1.3-0.75-2.47-1.74-3.47-2.93c-1-1.18-1.87-2.51-2.55-3.95c-0.68-1.44-1.16-2.97-1.45-4.57c-0.29-1.59-0.38-3.23-0.27-4.85c0.11-1.62,0.46-3.2,1.04-4.69c0.58-1.49,1.38-2.88,2.39-4.14c1.01-1.26,2.23-2.39,3.61-3.35c1.38-0.96,2.88-1.73,4.46-2.28c1.58-0.55,3.22-0.84,4.89-0.87c1.67-0.03,3.35,0.09,4.96,0.36c1.61,0.27,3.16,0.73,4.61,1.38c1.45,0.65,2.81,1.52,4.01,2.58l-3.32,3.32c-0.89-0.7-1.92-1.28-3.02-1.71c-1.1-0.43-2.26-0.66-3.43-0.68c-1.17-0.02-2.36,0.08-3.52,0.3c-1.16,0.22-2.28,0.59-3.34,1.09c-1.06,0.5-2.07,1.13-2.99,1.88c-0.92,0.75-1.77,1.63-2.5,2.62c-0.73,0.99-1.34,2.09-1.81,3.26c-0.47,1.17-0.81,2.41-1.01,3.69c-0.2,1.28-0.26,2.57-0.18,3.85c0.08,1.28,0.3,2.56,0.66,3.77c0.36,1.21,0.85,2.37,1.46,3.46c0.61,1.09,1.34,2.11,2.19,3.04c0.85,0.93,1.82,1.75,2.88,2.46c1.06,0.71,2.2,1.29,3.4,1.72c1.2,0.43,2.46,0.66,3.73,0.68c1.27,0.02,2.54-0.08,3.77-0.3c1.23-0.22,2.42-0.59,3.54-1.1c1.12-0.51,2.17-1.15,3.13-1.93c0.96-0.78,1.82-1.72,2.57-2.77c0.75-1.05,1.38-2.21,1.86-3.46c0.48-1.25,0.76-2.58,0.84-3.95c0.08-1.37-0.03-2.75-0.34-4.08C43.51,21.05,43.61,20.57,43.61,20.08z"/>
+        <path fill="#EA4335" d="M22.08,24c0-0.66,0.02-1.32,0.05-1.97c0.03-0.65,0.09-1.3,0.17-1.94c0.08-0.64,0.19-1.28,0.32-1.91c0.13-0.63,0.29-1.25,0.49-1.86c0.2-0.61,0.43-1.2,0.7-1.78c0.27-0.58,0.57-1.14,0.92-1.68c0.35-0.54,0.73-1.06,1.15-1.55c0.42-0.49,0.86-0.96,1.34-1.4c0.48-0.44,0.99-0.85,1.52-1.23c0.53-0.38,1.09-0.74,1.67-1.07c0.58-0.33,1.19-0.64,1.82-0.92c0.63-0.28,1.28-0.53,1.94-0.75c0.66-0.22,1.34-0.4,2.02-0.53c0.68-0.13,1.37-0.23,2.06-0.28c0.69-0.05,1.39-0.05,2.08-0.01c0.69,0.04,1.38,0.13,2.05,0.27c0.67,0.14,1.34,0.35,1.98,0.61c0.64,0.26,1.26,0.58,1.85,0.96l-3.32,3.32c-0.89-0.7-1.92-1.28-3.02-1.71c-1.1-0.43-2.26-0.66-3.43-0.68c-1.17-0.02-2.36,0.08-3.52,0.3c-1.16,0.22-2.28,0.59-3.34,1.09c-1.06,0.5-2.07,1.13-2.99,1.88c-0.92,0.75-1.77,1.63-2.5,2.62c-0.73,0.99-1.34,2.09-1.81,3.26c-0.47,1.17-0.81,2.41-1.01,3.69c-0.2,1.28-0.26,2.57-0.18,3.85c0.08,1.28,0.3,2.56,0.66,3.77c0.36,1.21,0.85,2.37,1.46,3.46c0.61,1.09,1.34,2.11,2.19,3.04c0.85,0.93,1.82,1.75,2.88,2.46c1.06,0.71,2.2,1.29,3.4,1.72c1.2,0.43,2.46,0.66,3.73,0.68c1.27,0.02,2.54-0.08,3.77-0.3c1.23-0.22,2.42-0.59,3.54-1.1c1.12-0.51,2.17-1.15,3.13-1.93c0.96-0.78,1.82-1.72,2.57-2.77c0.75-1.05,1.38-2.21,1.86-3.46c0.48-1.25,0.76-2.58,0.84-3.95c0.08-1.37-0.03-2.75-0.34-4.08C43.51,21.05,43.61,20.57,43.61,20.08z"/>
+        <path fill="#FBBC04" d="M22.08,24c0-0.66,0.02-1.32,0.05-1.97c0.03-0.65,0.09-1.3,0.17-1.94c0.08-0.64,0.19-1.28,0.32-1.91c0.13-0.63,0.29-1.25,0.49-1.86c0.2-0.61,0.43-1.2,0.7-1.78c0.27-0.58,0.57-1.14,0.92-1.68c0.35-0.54,0.73-1.06,1.15-1.55c0.42-0.49,0.86-0.96,1.34-1.4c0.48-0.44,0.99-0.85,1.52-1.23c0.53-0.38,1.09-0.74,1.67-1.07c0.58-0.33,1.19-0.64,1.82-0.92c0.63-0.28,1.28-0.53,1.94-0.75c0.66-0.22,1.34-0.4,2.02-0.53c0.68-0.13,1.37-0.23,2.06-0.28c0.69-0.05,1.39-0.05,2.08-0.01c0.69,0.04,1.38,0.13,2.05,0.27c0.67,0.14,1.34,0.35,1.98,0.61c0.64,0.26,1.26,0.58,1.85,0.96l-3.32,3.32c-0.89-0.7-1.92-1.28-3.02-1.71c-1.1-0.43-2.26-0.66-3.43-0.68c-1.17-0.02-2.36,0.08-3.52,0.3c-1.16,0.22-2.28,0.59-3.34,1.09c-1.06,0.5-2.07,1.13-2.99,1.88c-0.92,0.75-1.77,1.63-2.5,2.62c-0.73,0.99-1.34,2.09-1.81,3.26c-0.47,1.17-0.81,2.41-1.01,3.69c-0.2,1.28-0.26,2.57-0.18,3.85c0.08,1.28,0.3,2.56,0.66,3.77c0.36,1.21,0.85,2.37,1.46,3.46c0.61,1.09,1.34,2.11,2.19,3.04c0.85,0.93,1.82,1.75,2.88,2.46c1.06,0.71,2.2,1.29,3.4,1.72c1.2,0.43,2.46,0.66,3.73,0.68c1.27,0.02,2.54-0.08,3.77-0.3c1.23-0.22,2.42-0.59,3.54-1.1c1.12-0.51,2.17-1.15,3.13-1.93c0.96-0.78,1.82-1.72,2.57-2.77c0.75-1.05,1.38-2.21,1.86-3.46c0.48-1.25,0.76-2.58,0.84-3.95c0.08-1.37-0.03-2.75-0.34-4.08C43.51,21.05,43.61,20.57,43.61,20.08z"/>
+    </svg>
+    Sign In with Google
   </button>
-
- <input
-  type="file"
-  multiple
-  id="fileInput"
-  style="display: none"
-  on:change={(e) => {
-  const target = e.target as HTMLInputElement;
-  if (target.files) handleFiles(target.files);
-}}
-/>
-  <!-- File list -->
-  {#if files.length > 0}
-    <ul>
-      {#each files as f, i}
-        <li>
-          {f.name} <button type="button" on:click={() => removeFile(i)}>×</button>
-        </li>
-      {/each}
-    </ul>
-  {/if}
-
-<!-- NEW STATUS CHECK BUTTON -->
-  <button class="status-check" on:click={checkStatus} disabled={loading}>
-    {loading ? "Checking..." : "Check API Status"}
-  </button>
-
-  <button class="upload" on:click={handleUpload} disabled={loading}>
-    {loading ? "Analyzing..." : "Upload and Summarize"}
-  </button>
-
-  {#if summary}
-    <h2>Summary</h2>
-    <textarea readonly>{summary}</textarea>
-  {/if}
 </main>

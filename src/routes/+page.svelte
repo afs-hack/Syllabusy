@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { user, isAuthenticated, login, logout } from "$lib/auth";
+  import { user, isAuthenticated, googleAccessToken, login, logout } from "$lib/auth";
   const WELCOME_TEXT = "Welcome to";
   const TITLE = "Syllabusy";
   const SUBTITLE = "Your AI-Powered Syllabus Summarizer";
@@ -24,7 +24,8 @@ onMount(() => {
   }
 
   // Automatically redirect after login
-  $: if ($isAuthenticated) {
+  $: if ($isAuthenticated && $googleAccessToken) {
+    console.log('User authenticated with Google token');
     goHome();
   }
 </script>

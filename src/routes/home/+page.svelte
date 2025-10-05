@@ -12,6 +12,7 @@
   let calendarCreated = false;
   let summary = "";
   let loading = false;
+  let datesLoading = false;
   const BACKEND_URL = "http://localhost:5000/api/upload-pdf";
   const DATES_URL = "http://localhost:5000/api/get-dates";
 

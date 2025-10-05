@@ -5,8 +5,10 @@ import pathlib
 import os
 import uuid
 import json
+import base64
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from typing import List, Dict, Any, Optional
 
 import firebase_admin
 from firebase_admin import credentials, storage
@@ -94,11 +96,8 @@ def _perform_upload(file_handle, original_filename, user_id):
 # --- 2a. HTTP Request Upload Endpoint (Original functionality) ---
 @app.route('/api/upload-pdf', methods=['POST'])
 def upload_pdf_to_firebase():
-    print("DEBUG: /api/upload-pdf endpoint hit.")
-    print(f"DEBUG: Keys in request.files: {request.files.keys()}")
-    print("FUCK YOU")
     """Handles PDF file uploads from the frontend via POST request."""
-    user_id = request.headers.get('X-User-ID', 'anonymous_user')
+    user_id = request.headers.get('User-ID')
     
     # 1. Validation & File retrieval
     if 'files' not in request.files:
@@ -202,6 +201,129 @@ def get_status():
         'message': 'Flask server and API endpoints are running.',
         'firebase_status': 'Connected' if is_firebase_ready else 'Uninitialized'
     }), 200
+
+@app.route('/api/get-dates', methods=['POST'])
+def get_dates():
+    client = genai.Client()
+    user_id = request.headers.get('User-ID')
+    directory_path = f"{user_id}/pdfs/"
+    """Download all PDFs from a Firebase Storage directory"""
+    pdf_files = []
+    
+    try:
+        bucket = storage.bucket()
+        print(f"Accessing Firebase Storage bucket...")
+        
+        try:
+            blobs = list(bucket.list_blobs(prefix=directory_path))
+            
+            if not blobs:
+                print(f"⚠ No files found in directory: {directory_path}")
+                return jsonify({
+                    'status': 'BAD'
+                }),500
+            
+            print(f"Found {len(blobs)} file(s) in directory")
+            
+            for blob in blobs:
+                if blob.name.endswith('.pdf'):
+                    try:
+                        print(f"Downloading: {blob.name}...")
+                        pdf_data = blob.download_as_bytes()
+                        
+                        pdf_files.append({
+                            'name': blob.name,
+                            'data': pdf_data,
+                            'size': len(pdf_data)
+                        })
+                        
+                        size_mb = len(pdf_data) / (1024 * 1024)
+                        print(f"✓ Downloaded: {blob.name} ({size_mb:.2f} MB)")
+                        
+                    except Exception as e:
+                        print(f"✗ Error downloading {blob.name}: {e}")
+                        continue
+                        
+        except Exception as e:
+            print(f"✗ Error listing files in directory: {e}")
+            return jsonify({
+                    'status': 'BAD'
+                }),500
+            
+    except Exception as e:
+        print(f"✗ Error accessing Firebase Storage bucket: {e}")
+        return jsonify({
+                    'status': 'BAD'
+                }),500
+    
+    """Upload PDFs to Gemini API and get response"""
+    
+    prompt = "From these pdfs, list all of the exam dates in chronological order with the corresponding course name."
+
+    if not pdf_files:
+        print("⚠ No PDF files to upload")
+        return jsonify({
+                    'status': 'BAD'
+                }),500
+    
+    try:
+        model = "gemini-2.5-flash"
+        print(f"✓ Gemini model loaded")
+        
+        # Prepare content parts for Gemini
+        content_parts = [prompt]
+        
+        # Upload each PDF file to Gemini
+        for i, pdf in enumerate(pdf_files, 1):
+            try:
+                print(f"Uploading PDF {i}/{len(pdf_files)}: {pdf['name']}...")
+                
+                # Create inline data with base64 encoding
+                
+                pdf_part = types.Part(
+                    inline_data={
+                        'mime_type': 'application/pdf',
+                        'data': base64.b64encode(pdf['data']).decode('utf-8')
+                    }
+                )
+
+                content_parts.append(pdf_part)
+                print(f"✓ Uploaded: {pdf['name']}")
+                
+            except Exception as e:
+                print(f"✗ Error uploading {pdf['name']}: {e}")
+                continue
+        
+        # Check if we have any PDFs uploaded
+        if len(content_parts) == 1:
+            print("✗ No PDFs were successfully uploaded to Gemini")
+            return jsonify({
+                    'status': 'BAD'
+                }),500
+        
+        # Generate content with all PDFs
+        print(f"\nSending request to Gemini with {len(content_parts)-1} PDF(s)...")
+        
+        try:
+            response = client.models.generate_content(model=model, contents=[content_parts])
+            print("✓ Response received from Gemini")
+            return jsonify({
+            'summary': response.text, # Send a summary back for the textarea
+        }), 200
+            
+        except Exception as e:
+            print(f"✗ Error generating content with Gemini: {e}")
+            return jsonify({
+                    'status': 'BAD'
+                }),500
+            
+    except Exception as e:
+        print(f"✗ Error in Gemini upload process: {e}")
+        return jsonify({
+                    'status': 'BAD'
+                }),500
+            
+
 
 @app.route('/')
 def status():

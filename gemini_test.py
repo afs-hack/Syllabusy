@@ -3,11 +3,19 @@ from google.genai import types
 from dotenv import load_dotenv
 import pathlib
 import os
+import uuid
+import json
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 
+import firebase_admin
+from firebase_admin import credentials, storage
 # .env file contains the GEMINI_API_KEY
 # and TEST_PDF_PATH environment variables.
 
 load_dotenv()
+
+
 
 # The client gets the API key from the environment variable `GEMINI_API_KEY`.
 client = genai.Client()
@@ -17,6 +25,11 @@ TEST_PDF_PATH = os.getenv("TEST_PDF_PATH")
 print("Beginning PDF read test...")
 
 filepath = pathlib.Path(TEST_PDF_PATH).expanduser()
+
+
+
+
+
 
 prompt = "From this syllabus give me this information formatted cleanly in JSON: Course info: course code, course title, Professor info: name, office hours and office location, preferred contact, email, Classroom Info: meeting times, location, Textbooks: names, ISBNs, Assignments: types, weights, late policy, Class schedule: ass, Attendance Policy:"
 response = client.models.generate_content(

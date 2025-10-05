@@ -5,7 +5,8 @@ An AI app that takes your syllabuses and helps you get organized for the semeste
 # Dependencies
 google-genai
 dotenv
-pyodbc
+flask
+firebase-admin
 
 # Svelte Frontend
 This project uses Svelte for the frontend, powered by [`sv`](https://github.com/sveltejs/cli).

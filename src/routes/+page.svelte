@@ -9,6 +9,17 @@
 </script>
 
 <style>
+  .owl-container {
+  font-size: 120px;
+  margin-bottom: 1rem;
+  animation: float 3s ease-in-out infinite;
+  filter: drop-shadow(0 8px 16px rgba(94, 234, 212, 0.3));
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-15px); }
+}
   /* NEW COLOR PALETTE: Dark Slate with Electric Mint Accent */
   :global(body) {
     margin: 0;
@@ -35,28 +46,29 @@
   }
 
   .welcome {
-    font-size: 1.5vw;
-    font-weight: 400; /* Slightly heavier */
-    color: #F9F9FB;
-    /* TIGHTER SPACING: Reduced margin-bottom to bring it closer to the title */
-    margin: 0 0 0.25rem 0; 
+    font-size: 3.5vw; /* Made much bigger */
+  font-weight: 300;
+  color: #BAC2C9; /* Softer color to match subtitle */
+  margin: 0 0 0.5rem 0; /* Increased spacing below */
+  letter-spacing: 2px; /* Added spacing between letters */ 
   }
 
   .title {
     /* MUCH LARGER: Increased font size for impact */
     font-size: 12vw; 
-    font-weight: 900;
-    color: #5EEAD4; /* Electric Mint Accent */
-    margin-bottom: 0;
-    line-height: 0.85; /* Tightened line height for the large text */
-    letter-spacing: -4px; /* More condensed look */
+  font-weight: 900;
+  font-family: 'Fredoka', sans-serif;
+  color: #5EEAD4;
+  margin: 0; /* Removed bottom margin */
+  line-height: 0.85;
+  letter-spacing: -4px;
   }
 
   .subtitle {
-    font-size: 2vw;
-    font-weight: 300;
-    color: #BAC2C9; /* Soft grey for secondary text */
-    margin-top: 1rem;
+    font-size: 1.55vw;
+  font-weight: 100;
+  color: #BAC2C9;
+  margin-top: 0.75rem; /* Reduced from 1rem */
   }
 
   /* Google Login Placeholder styling remains consistent with Google branding */
@@ -106,6 +118,10 @@
 </style>
 
 <main class="landing-container">
+
+  <!-- Add owl here -->
+  <div class="owl-container">🦉</div>
+
   
   <div class="title-group">
     <!-- Welcome to -->

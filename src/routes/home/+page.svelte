@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { user, isAuthenticated, googleAccessToken } from "$lib/auth";
   
   let files: File[] = [];
   let summary = "";
@@ -14,7 +15,7 @@
       const res = await fetch(DATES_URL, {
         method: "POST",
         headers: {
-             'User-ID': 'Swaggy McBaggums' // Example header, modify as needed
+             'User-ID': $user?.sub || 'anonymous'// Example header, modify as needed
         },
       })
         if (!res.ok) throw new Error("Server down or unreachable: " + res.statusText);
@@ -30,7 +31,6 @@
     }
   }
   let starsContainer: HTMLDivElement;
-  
   // Chat state
   let chatOpen = false;
   let chatMessages: {role: string, content: string}[] = [];
@@ -82,7 +82,10 @@
     try {
       const res = await fetch(BACKEND_URL, {
         method: "POST",
-        body: formData
+        body: formData,
+        headers: {
+            'User-ID': $user?.sub || 'anonymous' // Example header, modify as needed
+        },
       });
 
       if (!res.ok) throw new Error("Backend error");

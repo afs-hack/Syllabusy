@@ -9,6 +9,7 @@ import base64
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from typing import List, Dict, Any, Optional
+import requests 
 
 import firebase_admin
 from firebase_admin import credentials, storage
@@ -206,6 +207,7 @@ def get_status():
 def get_dates():
     client = genai.Client()
     user_id = request.headers.get('User-ID')
+    google_token = request.headers.get('Google-Access-Token')  # NEW
     directory_path = f"{user_id}/pdfs/"
     """Download all PDFs from a Firebase Storage directory"""
     pdf_files = []
@@ -258,27 +260,29 @@ def get_dates():
     
     """Upload PDFs to Gemini API and get response"""
     
-    prompt = "From these pdfs, list all of the exam dates in chronological order with the corresponding course name."
+    prompt = prompt = """Analyze these PDF syllabi and extract all exam dates. Return ONLY valid JSON with no additional text, explanations, or markdown formatting.
+
+Format:
+{"events":[{"title":"Course Name - Exam Type","date":"YYYY-MM-DD","time":"HH:MM","description":"details"}]}
+
+Example:
+{"events":[{"title":"Biology 101 - Midterm Exam","date":"2025-03-15","time":"09:00","description":"Chapters 1-5"}]}
+
+Now extract the exam dates:"""
 
     if not pdf_files:
         print("⚠ No PDF files to upload")
-        return jsonify({
-                    'status': 'BAD'
-                }),500
+        return jsonify({'status': 'BAD'}), 500
     
-    try:
+    try:  # ✅ This should NOT be indented inside the if block
         model = "gemini-2.5-flash"
         print(f"✓ Gemini model loaded")
         
-        # Prepare content parts for Gemini
         content_parts = [prompt]
         
-        # Upload each PDF file to Gemini
         for i, pdf in enumerate(pdf_files, 1):
             try:
                 print(f"Uploading PDF {i}/{len(pdf_files)}: {pdf['name']}...")
-                
-                # Create inline data with base64 encoding
                 
                 pdf_part = types.Part(
                     inline_data={
@@ -294,34 +298,34 @@ def get_dates():
                 print(f"✗ Error uploading {pdf['name']}: {e}")
                 continue
         
-        # Check if we have any PDFs uploaded
         if len(content_parts) == 1:
             print("✗ No PDFs were successfully uploaded to Gemini")
-            return jsonify({
-                    'status': 'BAD'
-                }),500
+            return jsonify({'status': 'BAD'}), 500
         
-        # Generate content with all PDFs
         print(f"\nSending request to Gemini with {len(content_parts)-1} PDF(s)...")
         
         try:
             response = client.models.generate_content(model=model, contents=[content_parts])
             print("✓ Response received from Gemini")
+            
+            # Parse the JSON response
+            print("HI:")
+            print(response.text)
+            events_data = json.loads(response.text)
+            print(events_data)
             return jsonify({
-            'summary': response.text, # Send a summary back for the textarea
-        }), 200
+                'summary': response.text,
+                'events': events_data.get('events', []),
+                'has_google_token': bool(google_token)
+            }), 200
             
         except Exception as e:
             print(f"✗ Error generating content with Gemini: {e}")
-            return jsonify({
-                    'status': 'BAD'
-                }),500
+            return jsonify({'status': 'BAD'}), 500
             
     except Exception as e:
         print(f"✗ Error in Gemini upload process: {e}")
-        return jsonify({
-                    'status': 'BAD'
-                }),500
+        return jsonify({'status': 'BAD'}), 500
             
 
 

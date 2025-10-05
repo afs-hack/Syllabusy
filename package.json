@@ -21,6 +21,7 @@
 		"vite": "^7.1.7"
 	},
 	"dependencies": {
+		"@auth0/auth0-spa-js": "^2.5.0",
 		"@sveltejs/adapter-static": "^3.0.10",
 		"svelte-kit": "^1.2.0"
 	}

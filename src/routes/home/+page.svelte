@@ -4,6 +4,31 @@
   let files: File[] = [];
   let summary = "";
   let loading = false;
+  const BACKEND_URL = "http://localhost:5000/api/upload-pdf";
+  const DATES_URL = "http://localhost:5000/api/get-dates"; // New status endpoint
+
+  async function getDates(){
+    loading = true;
+
+    try{
+      const res = await fetch(DATES_URL, {
+        method: "POST",
+        headers: {
+             'User-ID': 'Swaggy McBaggums' // Example header, modify as needed
+        },
+      })
+        if (!res.ok) throw new Error("Server down or unreachable: " + res.statusText);
+
+        const data = await res.json();
+        // Format the status message nicely for the textarea
+        summary = data.summary;
+      ;
+    } catch (err) {
+      summary = "Connection Error: Cannot reach Flask server. Check server console for CORS/network issues.";
+    } finally {
+      loading = false;
+    }
+  }
   let starsContainer: HTMLDivElement;
   const BACKEND_URL = "http://localhost:5000/upload";
 
@@ -489,6 +514,11 @@ function handleKeyPress(e: KeyboardEvent) {
       </ul>
     </div>
   {/if}
+
+<!-- NEW STATUS CHECK BUTTON -->
+  <button class="status-check" on:click={getDates} disabled={loading}>
+    {loading ? "Checking..." : "Get important dates!"}
+  </button>
 
   <button class="upload-btn" on:click={handleUpload} disabled={loading || files.length === 0}>
     {loading ? "✨ Analyzing..." : "🦉 Analyze"}

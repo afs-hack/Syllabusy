@@ -5,11 +5,13 @@
   let files: File[] = [];
   let summary = "";
   let loading = false;
+  let datesLoading = false;
   const BACKEND_URL = "http://localhost:5000/api/upload-pdf";
   const DATES_URL = "http://localhost:5000/api/get-dates"; // New status endpoint
 
   async function getDates(){
-    loading = true;
+    datesLoading = true;
+    datesLoading = false;
 
     try{
       const res = await fetch(DATES_URL, {
@@ -518,13 +520,13 @@ function handleKeyPress(e: KeyboardEvent) {
   {/if}
 
 <!-- NEW STATUS CHECK BUTTON -->
-  <button class="status-check" on:click={getDates} disabled={loading}>
-    {loading ? "Checking..." : "Get important dates!"}
-  </button>
+<button class="upload-btn" on:click={getDates} disabled={datesLoading}>
+  {datesLoading ? "Checking..." : "Get important dates!"}
+</button>
 
   <button class="upload-btn" on:click={handleUpload} disabled={loading || files.length === 0}>
-    {loading ? "✨ Analyzing..." : "🦉 Analyze"}
-  </button>
+  {loading ? "✨ Analyzing..." : "Upload"}
+</button>
 
   {#if summary}
     <div class="summary-section">

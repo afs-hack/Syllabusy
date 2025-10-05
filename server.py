@@ -96,21 +96,31 @@ def _perform_upload(file_handle, original_filename, user_id):
 # --- 2a. HTTP Request Upload Endpoint (Original functionality) ---
 @app.route('/api/upload-pdf', methods=['POST'])
 def upload_pdf_to_firebase():
-    """
-    Handles file upload streamed from an HTTP request.
-    """
-    
-    # 1. Input Validation
+    print("DEBUG: /api/upload-pdf endpoint hit.")
+    print(f"DEBUG: Keys in request.files: {request.files.keys()}")
+    print("FUCK YOU")
+    """Handles PDF file uploads from the frontend via POST request."""
     user_id = request.headers.get('X-User-ID', 'anonymous_user')
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file part (expected key "file") in the request'}), 400
     
+    # 1. Validation & File retrieval
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part in the request.'}), 400
     uploaded_file = request.files['file']
+    
+    if uploaded_file.filename == '':
+        return jsonify({'error': 'No selected file.'}), 400
     original_filename = uploaded_file.filename
     
-    if original_filename == '':
-        return jsonify({'error': 'No file selected.'}), 400
-    
+    if not original_filename.lower().endswith('.pdf'):
+        return jsonify({'error': 'Invalid file type. Only PDF files are allowed.'}), 400
+
+    # ====================================================================
+    # DEBUGGING STEP: Print the arguments before calling the function
+    # ====================================================================
+    print("FUCK YOU")
+    print(f"DEBUG: User ID: {user_id}")
+    print(f"DEBUG: Original Filename: {original_filename}")
+    print(f"DEBUG: File Handle Object Type: {type(uploaded_file)}")
     # 2. Perform Upload using the reusable function
     upload_result, error_msg = _perform_upload(uploaded_file, original_filename, user_id)
     

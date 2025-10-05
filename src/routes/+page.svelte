@@ -2,7 +2,7 @@
   let files: File[] = [];
   let summary = "";
   let loading = false;
-  const BACKEND_URL = "http://localhost:5000/upload";
+  const BACKEND_URL = "http://localhost:5000/api/upload-pdf";
 
   function handleFiles(selectedFiles: FileList) {
     const newFiles = Array.from(selectedFiles);
@@ -162,13 +162,27 @@
   class="dropzone"
   on:drop={handleDrop}
   on:dragover={handleDragOver}
-  on:click={() => document.getElementById('fileInput')?.click()}
+  on:click={() => {
+    const input = document.getElementById('fileInput') as HTMLInputElement;
+    input?.click();
+  }}
+  role="button"
+  tabindex="0"
+  on:keydown={(e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      const input = document.getElementById('fileInput') as HTMLInputElement;
+      input?.click();
+    }
+  }}
 >
   Drag & Drop files here or click to select
 </div>
 
   <!-- File select button -->
-  <button class="file-button" type="button" on:click={() => document.getElementById('fileInput')?.click()}>
+  <button class="file-button" type="button" on:click={() => {
+  const input = document.getElementById('fileInput') as HTMLInputElement;
+  input?.click();
+}}>
     Select Files
   </button>
 
@@ -177,7 +191,10 @@
   multiple
   id="fileInput"
   style="display: none"
-  on:change={(e) => e.target.files && handleFiles(e.target.files)}
+  on:change={(e) => {
+  const target = e.target as HTMLInputElement;
+  if (target.files) handleFiles(target.files);
+}}
 />
   <!-- File list -->
   {#if files.length > 0}

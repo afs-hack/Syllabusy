@@ -10,6 +10,9 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from typing import List, Dict, Any, Optional
 import requests 
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from datetime import datetime, timedelta
 
 import firebase_admin
 from firebase_admin import credentials, storage
@@ -17,6 +20,7 @@ from firebase_admin import credentials, storage
 # and TEST_PDF_PATH environment variables.
 
 load_dotenv()
+
 
 
 # --- Flask Application Setup ---
@@ -94,6 +98,115 @@ def _perform_upload(file_handle, original_filename, user_id):
     except Exception as e:
         print(f"Error during Firebase upload: {e}")
         return None, f'Failed to upload file to storage: {str(e)}'
+    
+def create_calendar_events(events_data, access_token):
+    """
+    Takes the events dictionary and creates Google Calendar events.
+    
+    Args:
+        events_data: Dict with 'events' list containing event details
+        access_token: Google OAuth access token from frontend
+    
+    Returns:
+        List of created event IDs or error messages
+    """
+    try:
+        # Create credentials object from access token
+        credentials = Credentials(token=access_token)
+        
+        # Build Calendar API service
+        service = build('calendar', 'v3', credentials=credentials)
+        
+        created_events = []
+        
+        for event in events_data.get('events', []):
+            # Format the event for Google Calendar API
+            calendar_event = {
+                'summary': event['summary'],
+                'description': event.get('description', ''),
+            }
+            
+            # Handle start time
+            start_info = event['start']
+            if 'time' in start_info:
+                # Event has specific time
+                start_datetime = f"{start_info['date']}T{start_info['time']}:00"
+                calendar_event['start'] = {
+                    'dateTime': start_datetime,
+                    'timeZone': 'America/Chicago',  # Adjust to user's timezone
+                }
+                # Default 1-hour duration for exams
+                end_datetime = (datetime.fromisoformat(start_datetime) + 
+                               timedelta(hours=1)).isoformat()
+                calendar_event['end'] = {
+                    'dateTime': end_datetime,
+                    'timeZone': 'America/Chicago',
+                }
+            else:
+                # All-day event
+                calendar_event['start'] = {'date': start_info['date']}
+                calendar_event['end'] = {'date': start_info['date']}
+            
+            # Add reminders
+            calendar_event['reminders'] = {
+                'useDefault': False,
+                'overrides': [
+                    {'method': 'popup', 'minutes': 24 * 60},  # 1 day before
+                    {'method': 'popup', 'minutes': 60},        # 1 hour before
+                ],
+            }
+            
+            # Insert event into primary calendar
+            created_event = service.events().insert(
+                calendarId='primary',
+                body=calendar_event
+            ).execute()
+            
+            created_events.append({
+                'id': created_event['id'],
+                'summary': event['summary'],
+                'link': created_event.get('htmlLink')
+            })
+            
+        return {'success': True, 'events': created_events}
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+# Add this to your Flask route in server.py
+@app.route('/api/create-calendar-events', methods=['POST'])
+def create_calendar_events_endpoint():
+    """
+    Endpoint to create Google Calendar events from extracted syllabus dates
+    """
+    try:
+        data = request.json
+        google_token = request.headers.get('Google-Access-Token')
+        
+        if not google_token:
+            return jsonify({'error': 'No Google access token provided'}), 401
+        
+        events_data = data.get('events')
+        if not events_data:
+            return jsonify({'error': 'No events data provided'}), 400
+        
+        # Create the calendar events
+        result = create_calendar_events(
+            {'events': events_data}, 
+            google_token
+        )
+        
+        if result['success']:
+            return jsonify({
+                'message': f"Successfully created {len(result['events'])} calendar events",
+                'events': result['events']
+            }), 200
+        else:
+            return jsonify({'error': result['error']}), 500
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 # --- 2a. HTTP Request Upload Endpoint (Original functionality) ---
 @app.route('/api/upload-pdf', methods=['POST'])
@@ -203,12 +316,19 @@ def get_status():
         'firebase_status': 'Connected' if is_firebase_ready else 'Uninitialized'
     }), 200
 
+# --- 3. Gemini Integration Endpoint ---
 @app.route('/api/get-dates', methods=['POST'])
 def get_dates():
     client = genai.Client()
     user_id = request.headers.get('User-ID')
-    google_token = request.headers.get('Google-Access-Token')  # NEW
+    google_token = request.headers.get('Google-Access-Token')
     directory_path = f"{user_id}/pdfs/"
+    
+    # Add debug logging
+    print(f"DEBUG: User-ID = {user_id}")
+    print(f"DEBUG: Has Google Token = {bool(google_token)}")
+    print(f"DEBUG: Directory path = {directory_path}")
+    
     """Download all PDFs from a Firebase Storage directory"""
     pdf_files = []
     
@@ -222,8 +342,9 @@ def get_dates():
             if not blobs:
                 print(f"⚠ No files found in directory: {directory_path}")
                 return jsonify({
-                    'status': 'BAD'
-                }),500
+                    'status': 'BAD',
+                    'error': 'No PDF files found for this user'
+                }), 404  # Changed from 500 to 404
             
             print(f"Found {len(blobs)} file(s) in directory")
             
@@ -249,32 +370,39 @@ def get_dates():
         except Exception as e:
             print(f"✗ Error listing files in directory: {e}")
             return jsonify({
-                    'status': 'BAD'
-                }),500
+                'status': 'BAD',
+                'error': f'Error listing files: {str(e)}'
+            }), 500
             
     except Exception as e:
         print(f"✗ Error accessing Firebase Storage bucket: {e}")
         return jsonify({
-                    'status': 'BAD'
-                }),500
+            'status': 'BAD',
+            'error': f'Firebase error: {str(e)}'
+        }), 500
     
     """Upload PDFs to Gemini API and get response"""
     
-    prompt = prompt = """Analyze these PDF syllabi and extract all exam dates. Return ONLY valid JSON with no additional text, explanations, or markdown formatting.
+    prompt = """Analyze these PDF syllabi and extract all exam dates. Return ONLY valid JSON with no additional text, explanations, or markdown formatting.
 
 Format:
-{"events":[{"title":"Course Name - Exam Type","date":"YYYY-MM-DD","time":"HH:MM","description":"details"}]}
+{"events":[{"summary":"Course Name - Exam Type","description":"details","start":{"date":"YYYY-MM-DD","time":"HH:MM"}}]}
+
+For all-day events (submissions, etc), omit the "time" field.
 
 Example:
-{"events":[{"title":"Biology 101 - Midterm Exam","date":"2025-03-15","time":"09:00","description":"Chapters 1-5"}]}
+{"events":[{"summary":"Biology 101 - Midterm Exam","description":"Chapters 1-5","start":{"date":"2025-03-15","time":"09:00"}}]}
 
 Now extract the exam dates:"""
 
     if not pdf_files:
         print("⚠ No PDF files to upload")
-        return jsonify({'status': 'BAD'}), 500
+        return jsonify({
+            'status': 'BAD',
+            'error': 'No valid PDF files found'
+        }), 404
     
-    try:  # ✅ This should NOT be indented inside the if block
+    try:
         model = "gemini-2.5-flash"
         print(f"✓ Gemini model loaded")
         
@@ -300,7 +428,10 @@ Now extract the exam dates:"""
         
         if len(content_parts) == 1:
             print("✗ No PDFs were successfully uploaded to Gemini")
-            return jsonify({'status': 'BAD'}), 500
+            return jsonify({
+                'status': 'BAD',
+                'error': 'Failed to upload PDFs to Gemini'
+            }), 500
         
         print(f"\nSending request to Gemini with {len(content_parts)-1} PDF(s)...")
         
@@ -309,25 +440,46 @@ Now extract the exam dates:"""
             print("✓ Response received from Gemini")
             
             # Parse the JSON response
-            print("HI:")
+            print("Raw Response:")
             print(response.text)
-            events_data = json.loads(response.text)
-            print(events_data)
+            
+            # Clean up response text (remove markdown if present)
+            response_text = response.text.strip()
+            if response_text.startswith('```json'):
+                response_text = response_text.split('```json')[1].split('```')[0].strip()
+            elif response_text.startswith('```'):
+                response_text = response_text.split('```')[1].split('```')[0].strip()
+            
+            events_data = json.loads(response_text)
+            print(f"✓ Parsed {len(events_data.get('events', []))} events")
+            
             return jsonify({
-                'summary': response.text,
+                'summary': f"Found {len(events_data.get('events', []))} exam dates across your syllabi",
                 'events': events_data.get('events', []),
                 'has_google_token': bool(google_token)
             }), 200
             
+        except json.JSONDecodeError as e:
+            print(f"✗ JSON parsing error: {e}")
+            print(f"Response text: {response.text}")
+            return jsonify({
+                'status': 'BAD',
+                'error': 'Failed to parse Gemini response as JSON',
+                'raw_response': response.text
+            }), 500
         except Exception as e:
             print(f"✗ Error generating content with Gemini: {e}")
-            return jsonify({'status': 'BAD'}), 500
+            return jsonify({
+                'status': 'BAD',
+                'error': f'Gemini API error: {str(e)}'
+            }), 500
             
     except Exception as e:
         print(f"✗ Error in Gemini upload process: {e}")
-        return jsonify({'status': 'BAD'}), 500
-            
-
+        return jsonify({
+            'status': 'BAD',
+            'error': f'Upload process error: {str(e)}'
+        }), 500            
 
 @app.route('/')
 def status():

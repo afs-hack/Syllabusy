@@ -1,45 +1,33 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { user, isAuthenticated, googleAccessToken } from "$lib/auth";
+  import "$lib/google-types"; // Import type declarations
+  
+  // REPLACE THIS with your Google OAuth Client ID
+  const GOOGLE_CLIENT_ID = '246702951979-3b6ubofdvir8f9170m2noq8ilg1sh8r4.apps.googleusercontent.com';
+  const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar';
   
   let files: File[] = [];
+  let extractedEvents: any[] = [];
+  let calendarCreated = false;
   let summary = "";
   let loading = false;
   let datesLoading = false;
   const BACKEND_URL = "http://localhost:5000/api/upload-pdf";
-  const DATES_URL = "http://localhost:5000/api/get-dates"; // New status endpoint
+  const DATES_URL = "http://localhost:5000/api/get-dates";
 
-  async function getDates(){
-    datesLoading = true;
-    datesLoading = false;
+  let tokenClient: any = null;
+  let gapiInited = false;
+  let gisInited = false;
 
-    try{
-      const res = await fetch(DATES_URL, {
-        method: "POST",
-        headers: {
-             'User-ID': $user?.sub || 'anonymous'// Example header, modify as needed
-        },
-      })
-        if (!res.ok) throw new Error("Server down or unreachable: " + res.statusText);
-
-        const data = await res.json();
-        // Format the status message nicely for the textarea
-        summary = data.summary;
-      ;
-    } catch (err) {
-      summary = "Connection Error: Cannot reach Flask server. Check server console for CORS/network issues.";
-    } finally {
-      loading = false;
-    }
-  }
   let starsContainer: HTMLDivElement;
-  // Chat state
   let chatOpen = false;
   let chatMessages: {role: string, content: string}[] = [];
   let userInput = "";
   let chatLoading = false;
 
   onMount(() => {
+    // Create stars
     for (let i = 0; i < 50; i++) {
       const star = document.createElement('div');
       star.className = 'star';
@@ -48,7 +36,166 @@
       star.style.animationDelay = `${Math.random() * 3}s`;
       starsContainer?.appendChild(star);
     }
+
+    // Load Google API scripts
+    const gapiScript = document.createElement('script');
+    gapiScript.src = 'https://apis.google.com/js/api.js';
+    gapiScript.async = true;
+    gapiScript.defer = true;
+    gapiScript.onload = () => initializeGapiClient();
+    document.head.appendChild(gapiScript);
+
+    const gisScript = document.createElement('script');
+    gisScript.src = 'https://accounts.google.com/gsi/client';
+    gisScript.async = true;
+    gisScript.defer = true;
+    gisScript.onload = () => initializeGisClient();
+    document.head.appendChild(gisScript);
   });
+
+  function initializeGapiClient() {
+    if (typeof window !== 'undefined' && window.gapi) {
+      window.gapi.load('client', async () => {
+        await window.gapi.client.init({});
+        gapiInited = true;
+        console.log('GAPI initialized');
+      });
+    }
+  }
+
+  function initializeGisClient() {
+    if (typeof window !== 'undefined' && window.google) {
+      try {
+        tokenClient = window.google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: GOOGLE_CALENDAR_SCOPE,
+          callback: (tokenResponse: any) => {
+            if (tokenResponse.error) {
+              console.error('Google OAuth Error:', tokenResponse);
+              alert(`Authentication failed: ${tokenResponse.error}`);
+              return;
+            }
+            
+            if (tokenResponse.access_token) {
+              googleAccessToken.set(tokenResponse.access_token);
+              console.log('Got Google Calendar token');
+              
+              if (extractedEvents.length > 0) {
+                createCalendarEvents(extractedEvents);
+              }
+            }
+          },
+          error_callback: (error: any) => {
+            console.error('Google OAuth initialization error:', error);
+            alert(`OAuth error: ${error.message || 'Unknown error'}`);
+          }
+        });
+        gisInited = true;
+        console.log('GIS initialized with client ID:', GOOGLE_CLIENT_ID);
+      } catch (error) {
+        console.error('Failed to initialize GIS:', error);
+        alert('Failed to initialize Google authentication. Check console for details.');
+      }
+    }
+  }
+
+  function requestGoogleCalendarPermission() {
+    if (!gisInited) {
+      alert('Google authentication is loading. Please wait a moment.');
+      return;
+    }
+    
+    console.log('Requesting Google Calendar access with Client ID:', GOOGLE_CLIENT_ID);
+    
+    try {
+      tokenClient.requestAccessToken({ 
+        prompt: 'consent',
+        hint: $user?.email || ''
+      });
+    } catch (error) {
+      console.error('Error requesting access token:', error);
+      alert('Failed to request Google Calendar access. Check the console for details.');
+    }
+  }
+
+  async function getDates() {
+    loading = true;
+
+    try {
+      const res = await fetch(DATES_URL, {
+        method: "POST",
+        headers: {
+          'User-ID': $user?.sub || 'anonymous',
+        }
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || res.statusText);
+      }
+
+      const data = await res.json();
+      summary = data.summary;
+      extractedEvents = data.events || [];
+      
+      console.log(`Extracted ${extractedEvents.length} events`);
+      
+      if (!$googleAccessToken && extractedEvents.length > 0) {
+        const wantsCalendar = confirm(
+          `Found ${extractedEvents.length} exam dates! Add them to Google Calendar?`
+        );
+        
+        if (wantsCalendar) {
+          requestGoogleCalendarPermission();
+        }
+      } else if ($googleAccessToken && extractedEvents.length > 0) {
+        createCalendarEvents(extractedEvents);
+      }
+      
+    } catch (err) {
+      console.error("Error:", err);
+      summary = "Error: " + (err instanceof Error ? err.message : String(err));
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function createCalendarEvents(events: any[]) {
+    if (!$googleAccessToken) {
+      alert("Please connect Google Calendar first");
+      return;
+    }
+    
+    if (events.length === 0) {
+      alert("No events to create");
+      return;
+    }
+    
+    loading = true;
+    
+    try {
+      const res = await fetch('http://localhost:5000/api/create-calendar-events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Google-Access-Token': $googleAccessToken,
+          'User-ID': $user?.sub || 'anonymous'
+        },
+        body: JSON.stringify({ events })
+      });
+      
+      if (!res.ok) throw new Error("Failed to create calendar events");
+      
+      const data = await res.json();
+      calendarCreated = true;
+      alert(`Successfully created ${data.events.length} calendar events!`);
+      
+    } catch (err) {
+      alert("Error creating calendar events: " + err);
+    } finally {
+      loading = false;
+    }
+  }
 
   function handleFiles(selectedFiles: FileList) {
     const newFiles = Array.from(selectedFiles);
@@ -86,7 +233,7 @@
         method: "POST",
         body: formData,
         headers: {
-            'User-ID': $user?.sub || 'anonymous' // Example header, modify as needed
+          'User-ID': $user?.sub || 'anonymous'
         },
       });
 
@@ -100,27 +247,25 @@
       loading = false;
     }
   }
+
   async function sendMessage() {
-  if (!userInput.trim() || chatLoading) return;
+    if (!userInput.trim() || chatLoading) return;
 
-  const message = userInput.trim();
-  userInput = "";
-  
-  // Add user message
-  chatMessages = [...chatMessages, { role: 'user', content: message }];
-  chatLoading = true;
+    const message = userInput.trim();
+    userInput = "";
+    
+    chatMessages = [...chatMessages, { role: 'user', content: message }];
+    chatLoading = true;
 
-  // Simulate thinking delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-  // Mock response for now
-  const mockResponse = "This is a placeholder response. Once you connect the Gemini API, I'll be able to answer questions about your syllabus!";
-  
-  chatMessages = [...chatMessages, { role: 'assistant', content: mockResponse }];
-  chatLoading = false;
-}
+    const mockResponse = "This is a placeholder response. Connect the Gemini API for real answers!";
+    
+    chatMessages = [...chatMessages, { role: 'assistant', content: mockResponse }];
+    chatLoading = false;
+  }
 
-function handleKeyPress(e: KeyboardEvent) {
+  function handleKeyPress(e: KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -128,6 +273,7 @@ function handleKeyPress(e: KeyboardEvent) {
   }
 </script>
 
+<!-- Keep all your existing styles -->
 <style>
   :global(body) {
     margin: 0;
@@ -269,7 +415,7 @@ function handleKeyPress(e: KeyboardEvent) {
     transform: scale(1.1);
   }
 
-  .upload-btn {
+  .upload-btn, .status-check {
     padding: 1rem 3rem;
     font-size: 1.2rem;
     font-weight: 600;
@@ -280,14 +426,15 @@ function handleKeyPress(e: KeyboardEvent) {
     cursor: pointer;
     transition: all 0.3s;
     box-shadow: 0 4px 15px rgba(94, 234, 212, 0.4);
+    margin: 0.5rem;
   }
 
-  .upload-btn:hover:not(:disabled) {
+  .upload-btn:hover:not(:disabled), .status-check:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(94, 234, 212, 0.5);
   }
 
-  .upload-btn:disabled {
+  .upload-btn:disabled, .status-check:disabled {
     opacity: 0.6;
     cursor: not-allowed;
   }
@@ -312,7 +459,6 @@ function handleKeyPress(e: KeyboardEvent) {
     text-align: left;
   }
 
-  /* Chat Button */
   .chat-toggle {
     position: fixed;
     bottom: 2rem;
@@ -333,7 +479,6 @@ function handleKeyPress(e: KeyboardEvent) {
     transform: scale(1.1);
   }
 
-  /* Chat Window */
   .chat-window {
     position: fixed;
     bottom: 6rem;
@@ -412,29 +557,6 @@ function handleKeyPress(e: KeyboardEvent) {
     font-family: inherit;
   }
 
-  .message.assistant {
-    background: rgba(94, 234, 212, 0.1);
-    color: #F9F9FB;
-    align-self: flex-start;
-  }
-
-  .chat-input-container {
-    padding: 1rem;
-    background: rgba(94, 234, 212, 0.05);
-    display: flex;
-    gap: 0.5rem;
-  }
-
-  .chat-input {
-    flex: 1;
-    padding: 0.75rem;
-    border-radius: 8px;
-    border: 1px solid #5EEAD4;
-    background: #0D1117;
-    color: #F9F9FB;
-    font-family: inherit;
-  }
-
   .send-btn {
     padding: 0.75rem 1.5rem;
     background: #5EEAD4;
@@ -482,15 +604,15 @@ function handleKeyPress(e: KeyboardEvent) {
     on:dragover={handleDragOver}
     on:click={() => document.getElementById('fileInput')?.click()}
     on:keydown={(e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      document.getElementById('fileInput')?.click();
-    }
-  }}
-  role="button"
-  tabindex="0"
->
-  <p>Drag & Drop syllabi here or click to select</p>
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        document.getElementById('fileInput')?.click();
+      }
+    }}
+    role="button"
+    tabindex="0"
+  >
+    <p>Drag & Drop syllabi here or click to select</p>
   </div>
 
   <input
@@ -519,14 +641,13 @@ function handleKeyPress(e: KeyboardEvent) {
     </div>
   {/if}
 
-<!-- NEW STATUS CHECK BUTTON -->
-<button class="upload-btn" on:click={getDates} disabled={datesLoading}>
-  {datesLoading ? "Checking..." : "Get important dates!"}
-</button>
-
   <button class="upload-btn" on:click={handleUpload} disabled={loading || files.length === 0}>
-  {loading ? "✨ Analyzing..." : "Upload"}
-</button>
+    {loading ? "✨ Uploading..." : "📤 Upload"}
+  </button>
+
+  <button class="status-check" on:click={getDates} disabled={loading}>
+    {loading ? "Analyzing..." : "Sync with Google Calendar"}
+  </button>
 
   {#if summary}
     <div class="summary-section">
@@ -536,12 +657,10 @@ function handleKeyPress(e: KeyboardEvent) {
   {/if}
 </main>
 
-<!-- Chat Toggle Button -->
 <button class="chat-toggle" on:click={() => chatOpen = !chatOpen}>
   💬
 </button>
 
-<!-- Chat Window -->
 {#if chatOpen}
   <div class="chat-window">
     <div class="chat-header">

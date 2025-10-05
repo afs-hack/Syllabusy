@@ -7,6 +7,12 @@
   let starsContainer: HTMLDivElement;
   const BACKEND_URL = "http://localhost:5000/upload";
 
+  // Chat state
+  let chatOpen = false;
+  let chatMessages: {role: string, content: string}[] = [];
+  let userInput = "";
+  let chatLoading = false;
+
   onMount(() => {
     for (let i = 0; i < 50; i++) {
       const star = document.createElement('div');
@@ -63,6 +69,32 @@
       summary = "Error: " + (err instanceof Error ? err.message : err);
     } finally {
       loading = false;
+    }
+  }
+  async function sendMessage() {
+  if (!userInput.trim() || chatLoading) return;
+
+  const message = userInput.trim();
+  userInput = "";
+  
+  // Add user message
+  chatMessages = [...chatMessages, { role: 'user', content: message }];
+  chatLoading = true;
+
+  // Simulate thinking delay
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  // Mock response for now
+  const mockResponse = "This is a placeholder response. Once you connect the Gemini API, I'll be able to answer questions about your syllabus!";
+  
+  chatMessages = [...chatMessages, { role: 'assistant', content: mockResponse }];
+  chatLoading = false;
+}
+
+function handleKeyPress(e: KeyboardEvent) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
     }
   }
 </script>
@@ -251,9 +283,159 @@
     text-align: left;
   }
 
+  /* Chat Button */
+  .chat-toggle {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #5EEAD4 0%, #4285f4 100%);
+    border: none;
+    cursor: pointer;
+    font-size: 2rem;
+    box-shadow: 0 4px 20px rgba(94, 234, 212, 0.4);
+    transition: transform 0.3s;
+    z-index: 1000;
+  }
+
+  .chat-toggle:hover {
+    transform: scale(1.1);
+  }
+
+  /* Chat Window */
+  .chat-window {
+    position: fixed;
+    bottom: 6rem;
+    right: 2rem;
+    width: 400px;
+    height: 500px;
+    background: #1A1E26;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    overflow: hidden;
+  }
+
+  .chat-header {
+    background: linear-gradient(135deg, #5EEAD4 0%, #4285f4 100%);
+    color: #0D1117;
+    padding: 1rem;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .close-chat {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #0D1117;
+  }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .message {
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    max-width: 80%;
+  }
+
+  .message.user {
+    background: #5EEAD4;
+    color: #0D1117;
+    align-self: flex-end;
+    margin-left: auto;
+  }
+
+  .message.assistant {
+    background: rgba(94, 234, 212, 0.1);
+    color: #F9F9FB;
+    align-self: flex-start;
+  }
+
+  .chat-input-container {
+    padding: 1rem;
+    background: rgba(94, 234, 212, 0.05);
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .chat-input {
+    flex: 1;
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid #5EEAD4;
+    background: #0D1117;
+    color: #F9F9FB;
+    font-family: inherit;
+  }
+
+  .message.assistant {
+    background: rgba(94, 234, 212, 0.1);
+    color: #F9F9FB;
+    align-self: flex-start;
+  }
+
+  .chat-input-container {
+    padding: 1rem;
+    background: rgba(94, 234, 212, 0.05);
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .chat-input {
+    flex: 1;
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid #5EEAD4;
+    background: #0D1117;
+    color: #F9F9FB;
+    font-family: inherit;
+  }
+
+  .send-btn {
+    padding: 0.75rem 1.5rem;
+    background: #5EEAD4;
+    color: #0D1117;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: transform 0.2s;
+  }
+
+  .send-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
+
+  .send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   @keyframes slideUp {
     from { opacity: 0; transform: translateY(30px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 600px) {
+    .chat-window {
+      width: calc(100vw - 2rem);
+      right: 1rem;
+    }
   }
 </style>
 
@@ -319,3 +501,52 @@
     </div>
   {/if}
 </main>
+
+<!-- Chat Toggle Button -->
+<button class="chat-toggle" on:click={() => chatOpen = !chatOpen}>
+  💬
+</button>
+
+<!-- Chat Window -->
+{#if chatOpen}
+  <div class="chat-window">
+    <div class="chat-header">
+      <span>Ask About Your Syllabus</span>
+      <button class="close-chat" on:click={() => chatOpen = false}>×</button>
+    </div>
+    
+    <div class="chat-messages">
+      {#if chatMessages.length === 0}
+        <div class="message assistant">
+          Hi! Upload a syllabus and I can answer questions about deadlines, late policies, and more.
+        </div>
+      {/if}
+      
+      {#each chatMessages as msg}
+        <div class="message {msg.role}">
+          {msg.content}
+        </div>
+      {/each}
+      
+      {#if chatLoading}
+        <div class="message assistant">
+          Thinking...
+        </div>
+      {/if}
+    </div>
+    
+    <div class="chat-input-container">
+      <input
+        class="chat-input"
+        type="text"
+        placeholder="Ask a question..."
+        bind:value={userInput}
+        on:keypress={handleKeyPress}
+        disabled={chatLoading}
+      />
+      <button class="send-btn" on:click={sendMessage} disabled={chatLoading || !userInput.trim()}>
+        Send
+      </button>
+    </div>
+  </div>
+{/if}

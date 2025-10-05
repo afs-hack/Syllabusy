@@ -30,8 +30,7 @@
     }
   }
   let starsContainer: HTMLDivElement;
-  const BACKEND_URL = "http://localhost:5000/upload";
-
+  
   // Chat state
   let chatOpen = false;
   let chatMessages: {role: string, content: string}[] = [];

@@ -17,6 +17,7 @@ from firebase_admin import credentials, storage
 
 load_dotenv()
 
+
 # --- Flask Application Setup ---
 app = Flask(__name__)
 # Enable CORS for the frontend to communicate with this server
@@ -191,7 +192,6 @@ def upload_local_test():
 # --- NEW 2c. Status Endpoint ---
 @app.route('/api/status', methods=['POST'])
 def get_status():
-    print("AAAAAAAH")
     """Returns a simple JSON status to confirm the backend is running."""
     # Check if Firebase is initialized just to be thorough
     is_firebase_ready = bool(firebase_admin._apps)

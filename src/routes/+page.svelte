@@ -175,10 +175,7 @@ onMount(() => {
     {:else}
       <div class="p-4 text-center">
         <!-- Google-style login button (Auth0 login) -->
-        <button class="auth-placeholder" on:click={login} aria-label="Sign in with Google Account">
-          <svg class="google-icon" viewBox="0 0 48 48" role="img" aria-label="Google">
-            <!-- You can keep your full Google SVG paths here -->
-          </svg>
+        <button class="auth-button" on:click={login} aria-label="Sign in with Google Account">
           Sign In with Google
         </button>
       </div>
